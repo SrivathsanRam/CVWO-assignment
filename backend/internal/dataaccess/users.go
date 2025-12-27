@@ -1,15 +1,15 @@
 package users
 
 import (
-	"github.com/CVWO/sample-go-app/internal/database"
-	"github.com/CVWO/sample-go-app/internal/models"
+	"github.com/SrivathsanRam/CVWO_project/backend/internal/database"
+	"github.com/SrivathsanRam/CVWO_project/backend/internal/models"
 )
 
 func List(db *database.Database) ([]models.User, error) {
 	users := []models.User{
 		{
 			ID:   1,
-			Name: "CVWO",
+			UserName: "CVWO",
 		},
 	}
 	return users, nil
