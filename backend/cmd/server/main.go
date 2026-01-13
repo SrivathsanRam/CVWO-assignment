@@ -1,39 +1,34 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"net/http"
+    "fmt"
+    "log"
+    "net/http"
+    "os"
 
-	"github.com/SrivathsanRam/CVWO_project/backend/internal/database"
-	"github.com/SrivathsanRam/CVWO_project/backend/internal/router"
-	"github.com/joho/godotenv"
+    "github.com/SrivathsanRam/CVWO_project/backend/internal/database"
+    "github.com/SrivathsanRam/CVWO_project/backend/internal/router"
+    "github.com/joho/godotenv"
 )
 
 func main() {
-	// Load .env file from backend directory
-	// Try current directory first, then parent directories
-	envPaths := []string{".env", "../.env", "../../.env"}
-	envLoaded := false
-	for _, path := range envPaths {
-		if err := godotenv.Load(path); err == nil {
-			log.Printf("Loaded .env from: %s", path)
-			envLoaded = true
-			break
-		}
-	}
-	if !envLoaded {
-		log.Println("No .env file found, using system environment variables")
-	}
+    // Load .env file (only in development)
+    _ = godotenv.Load(".env")
 
-	// Initialize database connection
-	if _, err := database.GetDB(); err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
-	defer database.CloseDB()
+    // Initialize database connection
+    if _, err := database.GetDB(); err != nil {
+        log.Fatalf("Failed to connect to database: %v", err)
+    }
+    defer database.CloseDB()
 
-	r := router.Setup()
-	fmt.Println("Listening on port 8000 at http://localhost:8000")
+    r := router.Setup()
 
-	log.Fatalln(http.ListenAndServe(":8000", r))
+    // Use PORT from environment (Render sets this automatically)
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080"
+    }
+
+    fmt.Printf("Server starting on port %s\n", port)
+    log.Fatalln(http.ListenAndServe(":"+port, r))
 }
