@@ -12,95 +12,72 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type apiHandler func(http.ResponseWriter, *http.Request) (*api.Response, error)
+
+func handle(fn apiHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		response, err := fn(w, req)
+		w.Header().Set("Content-Type", "application/json")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(api.Response{
+				Messages:  []string{err.Error()},
+				ErrorCode: http.StatusInternalServerError,
+			})
+			return
+		}
+		if response == nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(api.Response{
+				Messages:  []string{"Empty response"},
+				ErrorCode: http.StatusInternalServerError,
+			})
+			return
+		}
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
 func GetRoutes() func(r chi.Router) {
 	return func(r chi.Router) {
-		writeResponse := func(w http.ResponseWriter, response *api.Response) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
-		}
-
 		// get users
-		r.Get("/users", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := users.HandleList(w, req)
-			writeResponse(w, response)
-		})
+		r.Get("/users", handle(users.HandleList))
+		// auth
+		r.Post("/auth/login", handle(users.HandleLogin))
+		r.Post("/auth/logout", handle(users.HandleLogout))
+		r.Get("/users/me", handle(users.HandleGetCurrentUser))
 		// get topics
-		r.Get("/topics", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := topics.HandleList(w, req)
-			writeResponse(w, response)
-		})
+		r.Get("/topics", handle(topics.HandleList))
 
 		// create topics
-		r.Post("/topics", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := topics.HandleCreate(w, req)
-			writeResponse(w, response)
-		})
+		r.Post("/topics", handle(topics.HandleCreate))
 
 		//get topic by id
-		r.Get("/topics/{id}", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := topics.HandleGet(w, req)
-			writeResponse(w, response)
-		})
+		r.Get("/topics/{id}", handle(topics.HandleGet))
 		//update topic by id
-		r.Put("/topics/{id}", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := topics.HandleUpdate(w, req)
-			writeResponse(w, response)
-		})
+		r.Put("/topics/{id}", handle(topics.HandleUpdate))
 		//delete topic by id
-		r.Delete("/topics/{id}", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := topics.HandleDelete(w, req)
-			writeResponse(w, response)
-		})
+		r.Delete("/topics/{id}", handle(topics.HandleDelete))
 		//get all posts
-		r.Get("/posts", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := posts.HandleList(w, req)
-			writeResponse(w, response)
-		})
+		r.Get("/posts", handle(posts.HandleList))
 		//create post
-		r.Post("/posts", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := posts.HandleCreate(w, req)
-			writeResponse(w, response)
-		})
+		r.Post("/posts", handle(posts.HandleCreate))
 		//get post by id
-		r.Get("/posts/{id}", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := posts.HandleGet(w, req)
-			writeResponse(w, response)
-		})
+		r.Get("/posts/{id}", handle(posts.HandleGet))
 		//update post by id
-		r.Put("/posts/{id}", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := posts.HandleUpdate(w, req)
-			writeResponse(w, response)
-		})
+		r.Put("/posts/{id}", handle(posts.HandleUpdate))
 		//delete post by id
-		r.Delete("/posts/{id}", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := posts.HandleDelete(w, req)
-			writeResponse(w, response)
-		})
-		// comments routes
-		r.Get("/comments", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := comments.HandleList(w, req)
-			writeResponse(w, response)
-		})
+		r.Delete("/posts/{id}", handle(posts.HandleDelete))
+		// get comments
+		r.Get("/comments", handle(comments.HandleList))
 		// create comment
-		r.Post("/comments", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := comments.HandleCreate(w, req)
-			writeResponse(w, response)
-		})
+		r.Post("/comments", handle(comments.HandleCreate))
 		// get comment by id
-		r.Get("/comments/{id}", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := comments.HandleGet(w, req)
-			writeResponse(w, response)
-		})
+		r.Get("/comments/{id}", handle(comments.HandleGet))
 
 		// update comment by id
-		r.Put("/comments/{id}", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := comments.HandleUpdate(w, req)
-			writeResponse(w, response)
-		})
+		r.Put("/comments/{id}", handle(comments.HandleUpdate))
 		// delete comment by id
-		r.Delete("/comments/{id}", func(w http.ResponseWriter, req *http.Request) {
-			response, _ := comments.HandleDelete(w, req)
-			writeResponse(w, response)
-		})
+		r.Delete("/comments/{id}", handle(comments.HandleDelete))
 	}
 }
