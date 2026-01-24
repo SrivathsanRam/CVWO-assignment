@@ -3,33 +3,41 @@ package database
 import (
 	"database/sql"
 	"os"
-	//_ "github.com/lib/pq"
+	"fmt"
+	"log"
+	_ "github.com/lib/pq"
 )
 
-type Database struct {
-	db *sql.DB
-}
 
-var instance *Database
+var DB *sql.DB;
 
-func GetDB() (*Database, error) {
-	if instance != nil {
-		return instance, nil
+func GetDB() (*sql.DB, error) {
+	if DB != nil {
+		return DB, nil
 	}
 
 	connectionString := os.Getenv("DATABASE_URL") // get connection string from .env file
 	db, err := sql.Open("postgres", connectionString)
-
-	// Handling potential connection errors
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	// Verifying the connection
-	if err = db.Ping(); err != nil {
-		return nil, err
-	}
-	// Initialising database instance
-	instance = &Database{db: db}
-	return instance, nil
 
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+	
+	DB = db
+	log.Println("Database connection established")
+	return DB, nil
+}
+
+func CloseDB() error {
+	if DB != nil {
+		err := DB.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close database: %w", err)
+		}
+		log.Println("Database connection closed")
+	}
+	return nil
 }
