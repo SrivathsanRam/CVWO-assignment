@@ -9,7 +9,7 @@ type User struct {
 }
 
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
+	UserName string `json:"username" binding:"required"`
 }
 
 type LoginResponse struct {
