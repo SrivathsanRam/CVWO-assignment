@@ -36,15 +36,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const login = useCallback(async (username: string) => {
-    const response = await api.login(username);
-    setUser(response.user);
-    localStorage.setItem("user", JSON.stringify(response.user));
+    setIsLoading(true);
+    try {
+      const response = await api.login(username);
+      setUser(response.user);
+      localStorage.setItem("user", JSON.stringify(response.user));
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const logout = useCallback(async () => {
-    await api.logout();
-    setUser(null);
-    localStorage.removeItem("user");
+    setIsLoading(true);
+    try {
+      await api.logout();
+      setUser(null);
+      localStorage.removeItem("user");
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const value = useMemo<AuthContextType>(() => ({
