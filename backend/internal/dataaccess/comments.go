@@ -3,11 +3,12 @@ package dataaccess
 import (
 	"database/sql"
 	"errors"
-	//"github.com/SrivathsanRam/CVWO_project/backend/internal/database"
-	"github.com/SrivathsanRam/CVWO_project/backend/internal/models"
-	"time"
-)
 
+	//"github.com/SrivathsanRam/CVWO_project/backend/internal/database"
+	"time"
+
+	"github.com/SrivathsanRam/CVWO_project/backend/internal/models"
+)
 
 type CommentRepository struct {
 	db *sql.DB
@@ -19,7 +20,8 @@ func NewCommentRepository(db *sql.DB) *CommentRepository {
 
 func scanCommentRow(row *sql.Row) (*models.Comment, error) {
 	var comment models.Comment
-	err := row.Scan(&comment.ID, &comment.Content, &comment.UserID, &comment.UserName, &comment.CreatedAt, &comment.UpdatedAt); if err != nil {
+	err := row.Scan(&comment.ID, &comment.Content, &comment.PostID, &comment.UserID, &comment.UserName, &comment.CreatedAt, &comment.UpdatedAt)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrorCommentNotFound
 		}
@@ -29,7 +31,7 @@ func scanCommentRow(row *sql.Row) (*models.Comment, error) {
 }
 
 const getComments = `
-SELECT c.id, c.content, c.user_id, u.username, c.created_at, c.updated_at
+SELECT c.id, c.content, c.post_id, c.user_id, u.username, c.created_at, c.updated_at
 FROM comments c
 JOIN users u ON c.user_id = u.id
 `
@@ -38,14 +40,14 @@ func (r *CommentRepository) Create(t *models.Comment) (*models.Comment, error) {
 	// Insert and return the inserted comment with username using JOIN
 	query := `
 	WITH inserted AS (
-	INSERT INTO comments (content, user_id)
-	VALUES ($1, $2)
+	INSERT INTO comments (content, post_id, user_id)
+	VALUES ($1, $2, $3)
 	RETURNING id
 )
 ` + getComments + `
 WHERE c.id = (SELECT id FROM inserted)
 `
-	return scanCommentRow(r.db.QueryRow(query, t.Content, t.UserID))
+	return scanCommentRow(r.db.QueryRow(query, t.Content, t.PostID, t.UserID))
 }
 
 func (r *CommentRepository) Update(id, userID int, content string) (*models.Comment, error) {
@@ -88,21 +90,16 @@ func (r *CommentRepository) Delete(id, userID int) error {
 	}
 	if rowsAffected == 0 {
 		// Could be not found or exists but user is not the owner
-		t, findErr := r.FindByID(id)
+		c, findErr := r.FindByID(id)
 		if findErr != nil {
-			return ErrorTopicNotFound
+			return ErrorCommentNotFound
 		}
-		if t.UserID != userID {
+		if c.UserID != userID {
 			return ErrorUnauthorized
 		}
-		return ErrorTopicNotFound
+		return ErrorCommentNotFound
 	}
 	return nil
-}
-
-func (r *CommentRepository) FindByTitle(title string) (*models.Topic, error) {
-	row := r.db.QueryRow(getTopics+" WHERE title=$1", title)
-	return scanTopicRow(row)
 }
 
 func (r *CommentRepository) FindByID(id int) (*models.Comment, error) {
@@ -116,14 +113,33 @@ func (r *CommentRepository) ListAll() ([]models.Comment, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var comments []models.Comment
 	for rows.Next() {
 		var comment models.Comment
-		if err := rows.Scan(&comment.ID, &comment.Content, &comment.UserID, &comment.UserName, &comment.CreatedAt, &comment.UpdatedAt); err != nil {
+		if err := rows.Scan(&comment.ID, &comment.Content, &comment.PostID, &comment.UserID, &comment.UserName, &comment.CreatedAt, &comment.UpdatedAt); err != nil {
 			return nil, err
 		}
 		comments = append(comments, comment)
 	}
 	return comments, rows.Err()
-}	
+}
+
+// ListByPost returns all comments for a specific post
+func (r *CommentRepository) ListByPost(postID int) ([]models.Comment, error) {
+	rows, err := r.db.Query(getComments+" WHERE c.post_id = $1 ORDER BY c.created_at ASC", postID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []models.Comment
+	for rows.Next() {
+		var comment models.Comment
+		if err := rows.Scan(&comment.ID, &comment.Content, &comment.PostID, &comment.UserID, &comment.UserName, &comment.CreatedAt, &comment.UpdatedAt); err != nil {
+			return nil, err
+		}
+		comments = append(comments, comment)
+	}
+	return comments, rows.Err()
+}

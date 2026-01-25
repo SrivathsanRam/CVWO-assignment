@@ -3,11 +3,12 @@ package dataaccess
 import (
 	"database/sql"
 	"errors"
-	//"github.com/SrivathsanRam/CVWO_project/backend/internal/database"
-	"github.com/SrivathsanRam/CVWO_project/backend/internal/models"
-	"time"
-)
 
+	//"github.com/SrivathsanRam/CVWO_project/backend/internal/database"
+	"time"
+
+	"github.com/SrivathsanRam/CVWO_project/backend/internal/models"
+)
 
 type PostRepository struct {
 	db *sql.DB
@@ -19,7 +20,8 @@ func NewPostRepository(db *sql.DB) *PostRepository {
 
 func scanPostRow(row *sql.Row) (*models.Post, error) {
 	var post models.Post
-	err := row.Scan(&post.ID, &post.Title, &post.Content, &post.UserID, &post.UserName, &post.CreatedAt, &post.UpdatedAt); if err != nil {
+	err := row.Scan(&post.ID, &post.Title, &post.Content, &post.TopicID, &post.TopicName, &post.UserID, &post.UserName, &post.CreatedAt, &post.UpdatedAt)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrorPostNotFound
 		}
@@ -29,23 +31,24 @@ func scanPostRow(row *sql.Row) (*models.Post, error) {
 }
 
 const getPosts = `
-SELECT p.id, p.title, p.content, p.user_id, u.username, p.created_at, p.updated_at
+SELECT p.id, p.title, p.content, p.topic_id, t.title, p.user_id, u.username, p.created_at, p.updated_at
 FROM posts p
 JOIN users u ON p.user_id = u.id
+JOIN topics t ON p.topic_id = t.id
 `
 
 func (r *PostRepository) Create(t *models.Post) (*models.Post, error) {
 	// Insert and return the inserted post with username using JOIN
 	query := `
 	WITH inserted AS (
-	INSERT INTO posts (title, content, user_id)
-	VALUES ($1, $2, $3)
+	INSERT INTO posts (title, content, topic_id, user_id)
+	VALUES ($1, $2, $3, $4)
 	RETURNING id
 )
 ` + getPosts + `
 WHERE p.id = (SELECT id FROM inserted)
 `
-	return scanPostRow(r.db.QueryRow(query, t.Title, t.Content, t.UserID))
+	return scanPostRow(r.db.QueryRow(query, t.Title, t.Content, t.TopicID, t.UserID))
 }
 
 func (r *PostRepository) Update(id, userID int, title, content string) (*models.Post, error) {
@@ -61,19 +64,19 @@ RETURNING id
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Could be "not found" OR "exists but not owner". Distinguish with one extra check.
-			t, findErr := r.FindByID(id)
+			p, findErr := r.FindByID(id)
 			if findErr != nil {
-				return nil, ErrorTopicNotFound
+				return nil, ErrorPostNotFound
 			}
-			if t.UserID != userID {
+			if p.UserID != userID {
 				return nil, ErrorUnauthorized
 			}
-			return nil, ErrorTopicNotFound // fallback
+			return nil, ErrorPostNotFound // fallback
 		}
 		return nil, err
 	}
 
-	// Return full topic (with username)
+	// Return full post (with username)
 	return r.FindByID(updatedID)
 }
 
@@ -101,12 +104,12 @@ func (r *PostRepository) Delete(id, userID int) error {
 }
 
 func (r *PostRepository) FindByTitle(title string) (*models.Post, error) {
-	row := r.db.QueryRow(getPosts+" WHERE title=$1", title)
+	row := r.db.QueryRow(getPosts+" WHERE p.title=$1", title)
 	return scanPostRow(row)
 }
 
 func (r *PostRepository) FindByID(id int) (*models.Post, error) {
-	row := r.db.QueryRow(getPosts+" WHERE id=$1", id)
+	row := r.db.QueryRow(getPosts+" WHERE p.id=$1", id)
 	return scanPostRow(row)
 }
 
@@ -116,14 +119,33 @@ func (r *PostRepository) ListAll() ([]models.Post, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var posts []models.Post
 	for rows.Next() {
 		var post models.Post
-		if err := rows.Scan(&post.ID, &post.Title, &post.CreatedAt); err != nil {
+		if err := rows.Scan(&post.ID, &post.Title, &post.Content, &post.TopicID, &post.TopicName, &post.UserID, &post.UserName, &post.CreatedAt, &post.UpdatedAt); err != nil {
 			return nil, err
 		}
 		posts = append(posts, post)
 	}
 	return posts, rows.Err()
-}	
+}
+
+// ListByTopic returns all posts for a specific topic
+func (r *PostRepository) ListByTopic(topicID int) ([]models.Post, error) {
+	rows, err := r.db.Query(getPosts+" WHERE p.topic_id = $1 ORDER BY p.created_at DESC", topicID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []models.Post
+	for rows.Next() {
+		var post models.Post
+		if err := rows.Scan(&post.ID, &post.Title, &post.Content, &post.TopicID, &post.TopicName, &post.UserID, &post.UserName, &post.CreatedAt, &post.UpdatedAt); err != nil {
+			return nil, err
+		}
+		posts = append(posts, post)
+	}
+	return posts, rows.Err()
+}

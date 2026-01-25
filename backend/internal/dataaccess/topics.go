@@ -3,11 +3,12 @@ package dataaccess
 import (
 	"database/sql"
 	"errors"
-	//"github.com/SrivathsanRam/CVWO_project/backend/internal/database"
-	"github.com/SrivathsanRam/CVWO_project/backend/internal/models"
-	"time"
-)
 
+	//"github.com/SrivathsanRam/CVWO_project/backend/internal/database"
+	"time"
+
+	"github.com/SrivathsanRam/CVWO_project/backend/internal/models"
+)
 
 type TopicRepository struct {
 	db *sql.DB
@@ -19,7 +20,8 @@ func NewTopicRepository(db *sql.DB) *TopicRepository {
 
 func scanTopicRow(row *sql.Row) (*models.Topic, error) {
 	var topic models.Topic
-	err := row.Scan(&topic.ID, &topic.Title, &topic.Description, &topic.UserID, &topic.UserName, &topic.CreatedAt, &topic.UpdatedAt); if err != nil {
+	err := row.Scan(&topic.ID, &topic.Title, &topic.Description, &topic.UserID, &topic.UserName, &topic.CreatedAt, &topic.UpdatedAt)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrorTopicNotFound
 		}
@@ -101,12 +103,12 @@ func (r *TopicRepository) Delete(id, userID int) error {
 }
 
 func (r *TopicRepository) FindByTitle(title string) (*models.Topic, error) {
-	row := r.db.QueryRow(getTopics+" WHERE title=$1", title)
+	row := r.db.QueryRow(getTopics+" WHERE t.title=$1", title)
 	return scanTopicRow(row)
 }
 
 func (r *TopicRepository) FindByID(id int) (*models.Topic, error) {
-	row := r.db.QueryRow(getTopics+" WHERE id=$1", id)
+	row := r.db.QueryRow(getTopics+" WHERE t.id=$1", id)
 	return scanTopicRow(row)
 }
 
@@ -116,14 +118,14 @@ func (r *TopicRepository) ListAll() ([]models.Topic, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var topics []models.Topic
 	for rows.Next() {
 		var topic models.Topic
-		if err := rows.Scan(&topic.ID, &topic.Title, &topic.CreatedAt); err != nil {
+		if err := rows.Scan(&topic.ID, &topic.Title, &topic.Description, &topic.UserID, &topic.UserName, &topic.CreatedAt, &topic.UpdatedAt); err != nil {
 			return nil, err
 		}
 		topics = append(topics, topic)
 	}
 	return topics, rows.Err()
-}	
+}
