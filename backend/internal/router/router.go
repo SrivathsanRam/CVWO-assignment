@@ -1,49 +1,68 @@
 package router
 
 import (
-    "net/http"
-    "os"
+	"net/http"
+	"os"
+	"strings"
 
-    "github.com/SrivathsanRam/CVWO_project/backend/internal/routes"
-    "github.com/go-chi/chi/v5"
+	"github.com/SrivathsanRam/CVWO_project/backend/internal/routes"
+	"github.com/go-chi/chi/v5"
 )
 
 func Setup() chi.Router {
-    r := chi.NewRouter()
-    r.Use(corsMiddleware)
-    setUpRoutes(r)
-    return r
+	r := chi.NewRouter()
+	r.Use(corsMiddleware)
+	setUpRoutes(r)
+	return r
 }
 
 func setUpRoutes(r chi.Router) {
-    r.Group(routes.GetRoutes())
+	r.Group(routes.GetRoutes())
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // Get allowed origin from environment or use defaults
-        allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
-        if allowedOrigin == "" {
-            // Default to localhost for development
-            allowedOrigin = "http://localhost:5173"
-        }
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Get allowed origins from environment
+		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+		if allowedOrigins == "" {
+			allowedOrigins = "http://localhost:5173"
+		}
 
-        origin := r.Header.Get("Origin")
-        
-        // Allow the specific origin or localhost for development
-        if origin == allowedOrigin || origin == "http://localhost:5173" {
-            w.Header().Set("Access-Control-Allow-Origin", origin)
-        }
+		origin := r.Header.Get("Origin")
 
-        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-User-ID")
-        w.Header().Set("Access-Control-Allow-Credentials", "true")
+		// Check if origin is in allowed list (comma-separated)
+		allowed := false
+		for _, allowedOrigin := range splitOrigins(allowedOrigins) {
+			if origin == allowedOrigin {
+				allowed = true
+				break
+			}
+		}
 
-        if r.Method == http.MethodOptions {
-            w.WriteHeader(http.StatusOK)
-            return
-        }
+		if allowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 
-        next.ServeHTTP(w, r)
-    })
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-User-ID")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func splitOrigins(origins string) []string {
+	var result []string
+	for _, o := range strings.Split(origins, ",") {
+		trimmed := strings.TrimSpace(o)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
