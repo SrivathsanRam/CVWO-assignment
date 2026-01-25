@@ -19,5 +19,5 @@ npm run dev
 
 -- Used ChatGPT to generate seed for mock users, topics, posts and comments
 
--- Used ChatGPT to generate skeleton frontend structure and to help with styling and debugging
+-- Used ChatGPT to generate skeleton frontend structure and to help with styling, debugging and deployment
 
