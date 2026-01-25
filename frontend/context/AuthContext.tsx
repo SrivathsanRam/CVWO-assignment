@@ -5,6 +5,7 @@ import { api } from "@/services/api";
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (username: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -32,6 +33,7 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(getInitialUser);
+  const [isLoading, setIsLoading] = useState(false);
 
   const login = useCallback(async (username: string) => {
     const response = await api.login(username);
@@ -48,9 +50,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value = useMemo<AuthContextType>(() => ({
     user,
     isAuthenticated: !!user,
+    isLoading,
     login,
     logout,
-  }), [user, login, logout]);
+  }), [user, isLoading, login, logout]);
 
   return (
     <AuthContext.Provider value={value}>
