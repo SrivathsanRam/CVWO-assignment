@@ -98,7 +98,17 @@ func HandleList(w http.ResponseWriter, r *http.Request) (*api.Response, error) {
 	}
 
 	repo := dataaccess.NewPostRepository(db)
-	posts, err := repo.ListAll()
+
+	var posts []models.Post
+	if topicID := r.URL.Query().Get("topic_id"); topicID != "" {
+		id, err := strconv.Atoi(topicID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "%s: failed to parse topic_id", handleListOp)
+		}
+		posts, err = repo.ListByTopic(id)
+	} else {
+		posts, err = repo.ListAll()
+	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "%s: %s", handleListOp, errListPosts)
 	}

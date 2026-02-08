@@ -97,7 +97,17 @@ func HandleList(w http.ResponseWriter, r *http.Request) (*api.Response, error) {
 	}
 
 	repo := dataaccess.NewCommentRepository(db)
-	comments, err := repo.ListAll()
+
+	var comments []models.Comment
+	if postID := r.URL.Query().Get("post_id"); postID != "" {
+		id, err := strconv.Atoi(postID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "%s: failed to parse post_id", handleListOp)
+		}
+		comments, err = repo.ListByPost(id)
+	} else {
+		comments, err = repo.ListAll()
+	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "%s: %s", handleListOp, errListComments)
 	}
