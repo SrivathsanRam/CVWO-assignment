@@ -36,18 +36,19 @@ FROM comments c
 JOIN users u ON c.user_id = u.id
 `
 
-func (r *CommentRepository) Create(t *models.Comment) (*models.Comment, error) {
+func (r *CommentRepository) Create(c *models.Comment) (*models.Comment, error) {
 	// Insert and return the inserted comment with username using JOIN
 	query := `
-	WITH inserted AS (
 	INSERT INTO comments (content, post_id, user_id)
 	VALUES ($1, $2, $3)
 	RETURNING id
-)
-` + getComments + `
-WHERE c.id = (SELECT id FROM inserted)
-`
-	return scanCommentRow(r.db.QueryRow(query, t.Content, t.PostID, t.UserID))
+	`
+	var id int
+    err := r.db.QueryRow(query, c.Content, c.PostID, c.UserID).Scan(&id)
+    if err != nil {
+        return nil, err
+    }
+    return r.FindByID(id)
 }
 
 func (r *CommentRepository) Update(id, userID int, content string) (*models.Comment, error) {
@@ -108,7 +109,7 @@ func (r *CommentRepository) FindByID(id int) (*models.Comment, error) {
 }
 
 func (r *CommentRepository) ListAll() ([]models.Comment, error) {
-	rows, err := r.db.Query(getComments)
+	rows, err := r.db.Query(getComments + " ORDER BY c.created_at DESC")
 	if err != nil {
 		return nil, err
 	}

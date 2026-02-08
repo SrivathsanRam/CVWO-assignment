@@ -37,18 +37,19 @@ JOIN users u ON p.user_id = u.id
 JOIN topics t ON p.topic_id = t.id
 `
 
-func (r *PostRepository) Create(t *models.Post) (*models.Post, error) {
+func (r *PostRepository) Create(p *models.Post) (*models.Post, error) {
 	// Insert and return the inserted post with username using JOIN
 	query := `
-	WITH inserted AS (
 	INSERT INTO posts (title, content, topic_id, user_id)
 	VALUES ($1, $2, $3, $4)
 	RETURNING id
-)
-` + getPosts + `
-WHERE p.id = (SELECT id FROM inserted)
-`
-	return scanPostRow(r.db.QueryRow(query, t.Title, t.Content, t.TopicID, t.UserID))
+	`
+	var id int
+    err := r.db.QueryRow(query, p.Title, p.Content, p.TopicID, p.UserID).Scan(&id)
+    if err != nil {
+        return nil, err
+    }
+    return r.FindByID(id)
 }
 
 func (r *PostRepository) Update(id, userID int, title, content string) (*models.Post, error) {
@@ -114,7 +115,7 @@ func (r *PostRepository) FindByID(id int) (*models.Post, error) {
 }
 
 func (r *PostRepository) ListAll() ([]models.Post, error) {
-	rows, err := r.db.Query(getPosts)
+	rows, err := r.db.Query(getPosts + " ORDER BY p.created_at DESC")
 	if err != nil {
 		return nil, err
 	}

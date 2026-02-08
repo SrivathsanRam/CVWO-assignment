@@ -1,10 +1,11 @@
 package router
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"strings"
-
+	"strconv"
 	"github.com/SrivathsanRam/CVWO_project/backend/internal/routes"
 	"github.com/go-chi/chi/v5"
 )
@@ -12,6 +13,7 @@ import (
 func Setup() chi.Router {
 	r := chi.NewRouter()
 	r.Use(corsMiddleware)
+	r.Use(authMiddleware)
 	setUpRoutes(r)
 	return r
 }
@@ -55,6 +57,20 @@ func corsMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func authMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        userIDHeader := r.Header.Get("X-User-ID")
+        if userIDHeader != "" {
+            if userID, err := strconv.Atoi(userIDHeader); err == nil {
+                ctx := context.WithValue(r.Context(), "user_id", userID)
+                r = r.WithContext(ctx)
+            }
+        }
+        next.ServeHTTP(w, r)
+    })
+}
+
 
 func splitOrigins(origins string) []string {
 	var result []string

@@ -39,15 +39,16 @@ JOIN users u ON t.user_id = u.id
 func (r *TopicRepository) Create(t *models.Topic) (*models.Topic, error) {
 	// Insert and return the inserted topic with username using JOIN
 	query := `
-	WITH inserted AS (
 	INSERT INTO topics (title, description, user_id)
 	VALUES ($1, $2, $3)
 	RETURNING id
-)
-` + getTopics + `
-WHERE t.id = (SELECT id FROM inserted)
-`
-	return scanTopicRow(r.db.QueryRow(query, t.Title, t.Description, t.UserID))
+	`
+	var id int
+    err := r.db.QueryRow(query, t.Title, t.Description, t.UserID).Scan(&id)
+    if err != nil {
+        return nil, err
+    }
+    return r.FindByID(id)
 }
 
 func (r *TopicRepository) Update(id, userID int, title, description string) (*models.Topic, error) {
@@ -108,12 +109,12 @@ func (r *TopicRepository) FindByTitle(title string) (*models.Topic, error) {
 }
 
 func (r *TopicRepository) FindByID(id int) (*models.Topic, error) {
-	row := r.db.QueryRow(getTopics+" WHERE t.id=$1", id)
+	row := r.db.QueryRow(getTopics +" WHERE t.id=$1", id)
 	return scanTopicRow(row)
 }
 
 func (r *TopicRepository) ListAll() ([]models.Topic, error) {
-	rows, err := r.db.Query(getTopics)
+	rows, err := r.db.Query(getTopics + " ORDER BY t.created_at DESC")
 	if err != nil {
 		return nil, err
 	}
